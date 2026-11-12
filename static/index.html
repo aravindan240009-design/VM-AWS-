@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AWS Agent Chat</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Left Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-top">
+        <button id="newChatBtn" class="btn-new-chat" type="button">
+          <span class="icon">+</span>
+          <span>New chat</span>
+        </button>
+        <button id="closeSidebarBtn" class="btn-icon mobile-only" type="button" title="Close sidebar">✕</button>
+      </div>
+
+      <div class="sidebar-search">
+        <input id="chatSearchInput" type="search" placeholder="Search chats..." autocomplete="off" />
+      </div>
+
+      <nav id="conversationList" class="conversation-list" aria-label="Chat history"></nav>
+
+      <div class="sidebar-footer">
+        <button id="openMemoryBtn" class="sidebar-action" type="button">
+          <span>Memory Vault</span>
+          <span id="memoryCountBadge" class="badge">0</span>
+        </button>
+        <button id="openSettingsBtn" class="sidebar-action" type="button">
+          <span class="status-wrap">
+            <span id="brainDot" class="status-dot offline"></span>
+            <span id="brainStatusText">AWS Brain: Checking...</span>
+          </span>
+          <span class="gear">⚙</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Chat Area -->
+    <main class="main-pane">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="openSidebarBtn" class="btn-icon mobile-only" type="button" title="Open sidebar">☰</button>
+          <div class="brand-title">
+            <span id="activeModelLabel" class="model-pill">huihui-ai/Qwen3-8B-abliterated</span>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <div class="mode-switch" role="group" aria-label="Assistant mode">
+            <button id="modeHarnessBtn" class="mode-btn active" type="button" data-mode="harness">Full Harness</button>
+            <button id="modeChatBtn" class="mode-btn" type="button" data-mode="chat">Fast Chat</button>
+          </div>
+          <button id="editPromptBtn" class="btn-ghost" type="button" title="Edit system instructions">Instructions</button>
+        </div>
+      </header>
+
+      <section id="messagesScroll" class="messages-scroll">
+        <div id="emptyState" class="empty-state">
+          <h1>What can I build or research for you?</h1>
+          <p class="empty-subtitle">
+            Connected to your AWS uncensored model brain with live web search, Python, shell, workspace files, and persistent memory.
+          </p>
+          <div class="starter-grid">
+            <button class="starter-card" type="button" data-prompt="Search the web for the latest vLLM optimization flags for NVIDIA T4 and summarize the fastest config.">
+              <strong>Live Web Research</strong>
+              <span>Search the web &amp; synthesize sources</span>
+            </button>
+            <button class="starter-card" type="button" data-prompt="Write and run a Python benchmark in workspace/ comparing prime sieve speeds up to 1,000,000.">
+              <strong>Run Python &amp; Files</strong>
+              <span>Write code, execute &amp; verify output</span>
+            </button>
+            <button class="starter-card" type="button" data-prompt="Inspect the files in the workspace and save a short summary to long-term memory.">
+              <strong>Workspace + Memory</strong>
+              <span>Explore files &amp; persist context</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="messagesList" class="messages-list"></div>
+      </section>
+
+      <footer class="composer-wrap">
+        <form id="composerForm" class="composer-box">
+          <textarea
+            id="promptInput"
+            rows="1"
+            placeholder="Message your AWS Agent..."
+            autocomplete="off"
+          ></textarea>
+          <div class="composer-actions">
+            <span id="toolsSummary" class="tools-hint">Tools active</span>
+            <div class="composer-buttons">
+              <button id="stopBtn" class="btn-stop hidden" type="button">Stop</button>
+              <button id="sendBtn" class="btn-send" type="submit" title="Send message">↑</button>
+            </div>
+          </div>
+        </form>
+        <div class="composer-footnote">
+          Tool execution runs sandboxed inside <code>workspace/</code>. Enter to send, Shift+Enter for newline.
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="settingsTitle">AWS Brain &amp; Harness Settings</h2>
+        <button class="btn-icon modal-close" data-close="settingsModal" type="button">✕</button>
+      </div>
+      <form id="settingsForm" class="modal-body">
+        <label class="field">
+          <span>AWS Model Endpoint (OpenAI-compatible <code>/v1</code>)</span>
+          <input id="cfgBaseUrl" type="url" placeholder="http://127.0.0.1:8000/v1" required />
+        </label>
+        <label class="field">
+          <span>Model ID</span>
+          <input id="cfgModel" type="text" placeholder="huihui-ai/Qwen3-8B-abliterated" required />
+          <div id="detectedModelsRow" class="detected-models"></div>
+        </label>
+        <label class="field">
+          <span>Bearer API Key (leave blank to keep existing)</span>
+          <input id="cfgApiKey" type="password" placeholder="••••••••" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>Max Agent Loop Steps</span>
+          <input id="cfgMaxSteps" type="number" min="1" max="30" value="12" />
+        </label>
+
+        <div class="toggles-grid">
+          <label class="toggle-item"><input id="cfgShell" type="checkbox" /> <span>Enable Shell tool</span></label>
+          <label class="toggle-item"><input id="cfgPython" type="checkbox" /> <span>Enable Python runner</span></label>
+          <label class="toggle-item"><input id="cfgWeb" type="checkbox" /> <span>Enable Web search &amp; fetch</span></label>
+          <label class="toggle-item"><input id="cfgNoThink" type="checkbox" /> <span>Fast No-Think mode (lowest latency)</span></label>
+        </div>
+
+        <div id="settingsStatus" class="settings-status"></div>
+
+        <div class="modal-footer">
+          <button id="testBrainBtn" class="btn-ghost" type="button">Test AWS Brain</button>
+          <button class="btn-primary" type="submit">Save Settings</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- System Instructions Modal -->
+  <div id="promptModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="promptTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="promptTitle">Chat System Instructions</h2>
+        <button class="btn-icon modal-close" data-close="promptModal" type="button">✕</button>
+      </div>
+      <form id="promptForm" class="modal-body">
+        <label class="field">
+          <span>Custom system prompt for this conversation (leave blank for default)</span>
+          <textarea id="convSystemPrompt" rows="6" placeholder="You are an expert software architect..."></textarea>
+        </label>
+        <div class="modal-footer">
+          <button class="btn-primary" type="submit">Save Instructions</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Memory Modal -->
+  <div id="memoryModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="memoryTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="memoryTitle">Long-Term Harness Memory</h2>
+        <button class="btn-icon modal-close" data-close="memoryModal" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="addMemoryForm" class="memory-add-row">
+          <input id="memTopic" type="text" placeholder="Topic (e.g. stack)" required />
+          <input id="memContent" type="text" placeholder="Fact to remember across chats..." required />
+          <button class="btn-primary" type="submit">Add</button>
+        </form>
+        <div id="memoryList" class="memory-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
